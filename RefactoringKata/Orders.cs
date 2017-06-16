@@ -6,6 +6,9 @@ namespace RefactoringKata
     {
         private List<Order> _orders = new List<Order>();
 
+        [JsonProperty("Orders")]
+        public List<Order> OrderList { get { return _orders; } }
+
         public void AddOrder(Order order)
         {
             _orders.Add(order);

@@ -20,7 +20,7 @@ namespace RefactoringKata.UnitTests
         [Test]
         public void NoOrder()
         {
-            Assert.AreEqual("{\"orders\": []}", new OrdersWriter(new Orders()).GetContents());
+            Assert.AreEqual("{\"orders\": []}", new Orders().JsonSerialize());
         }
 
         [Test]
