@@ -46,7 +46,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="JsonConvertTests.cs" />
-    <Compile Include="OrdersWriterTest.cs" />
+    <Compile Include="JsonConvertOrdersTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

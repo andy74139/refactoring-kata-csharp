@@ -6,52 +6,77 @@ using System.Reflection;
 
 namespace RefactoringKata
 {
-    public class JsonConvert
+    internal class JsonConvert
     {
-        public static string Serialize(object obj)
+        public static JsonConvert Instance = new JsonConvert();
+
+        private JsonConvert()
+        {
+        }
+
+        public string Serialize(object obj)
         {
             var properties = new Dictionary<string, object>();
             var propertyInfos = obj.GetType().GetProperties();
             foreach (var propertyInfo in propertyInfos)
             {
                 if (!ShouldSerialize(obj, propertyInfo)) continue;
-                properties[propertyInfo.Name] = SelectValue(obj, propertyInfo) ?? propertyInfo.GetValue(obj);
+                
+                var propertyName = PropertyName(propertyInfo);
+                var propertyValue = SelectValue(obj, propertyInfo) ?? propertyInfo.GetValue(obj);
+                properties[propertyName] = propertyValue;
             }
 
             return '{' + string.Join(", ", properties.Select(SerializeProperty)) + '}';
         }
 
-        private static string SelectValue(object obj, PropertyInfo propertyInfo)
+        private string PropertyName(PropertyInfo propertyInfo)
+        {
+            var attributes = propertyInfo.GetCustomAttributes(false);
+            var propertyName = propertyInfo.Name;
+            foreach (var attribute in attributes)
+            {
+                if (attribute.GetType() == typeof (JsonProperty))
+                    propertyName = ((JsonProperty) attribute).Name;
+            }
+            return propertyName;
+        }
+
+        private string SelectValue(object obj, PropertyInfo propertyInfo)
         {
             var selectMethodInfo = obj.GetType().GetMethod("Select" + propertyInfo.Name);
             return selectMethodInfo == null ? null : (string) selectMethodInfo.Invoke(obj, null);
         }
 
-        private static string SerializeProperty(KeyValuePair<string, object> property)
+        private string SerializeProperty(KeyValuePair<string, object> property)
         {
-            object value;
-            var valueType = property.Value.GetType();
-            if (valueType == typeof(string))
-                value = ((string)property.Value).Quote();
-            else if (valueType.IsPrimitive)
-                value = property.Value.ToString();
-            else if (property.Value is IList && valueType.IsGenericType)
-            {
-                //var genericType = valueType.GenericTypeArguments[0];
-                value = SerializeEnumerable((dynamic) Convert.ChangeType(property.Value ,valueType));
-            }
-            else
-                value = Serialize(property.Value);
+            var value = GetValueJsonString(property.Value);
 
             return string.Format("{0}: {1}", property.Key.ToLower().Quote(), value);
         }
 
-        private static string SerializeEnumerable<T>(IEnumerable<T> objects)
+        // handled types: string, primitive, List<T>, class
+        private object GetValueJsonString(object obj)
+        {
+            var objType = obj.GetType();
+            if (objType == typeof (string))
+                return ((string) obj).Quote();
+            if (objType.IsPrimitive)
+                return obj.ToString();
+            if (obj is IList && objType.IsGenericType)
+                return SerializeEnumerable((dynamic) Convert.ChangeType(obj, objType));
+            if(objType.IsClass)
+                return Serialize(obj);
+
+            throw new ArgumentException();
+        }
+
+        private string SerializeEnumerable<T>(IEnumerable<T> objects)
         {
             return '[' + string.Join(", ", objects.Select(o => Serialize(o))) + ']';
         }
 
-        private static bool ShouldSerialize(object obj, PropertyInfo propertyInfo)
+        private bool ShouldSerialize(object obj, PropertyInfo propertyInfo)
         {
             var serializeMethodInfo = obj.GetType().GetMethod("ShouldSerialize" + propertyInfo.Name);
             return serializeMethodInfo == null || (bool)serializeMethodInfo.Invoke(obj, null);
@@ -62,7 +87,7 @@ namespace RefactoringKata
     {
         public static string JsonSerialize(this object obj)
         {
-            return JsonConvert.Serialize(obj);
+            return JsonConvert.Instance.Serialize(obj);
         }
 
         public static string Quote(this string str)
